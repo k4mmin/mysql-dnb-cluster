@@ -1,0 +1,34 @@
+[maxscale]
+log_info=true
+
+[Cluster Service]
+type=service
+router=readconnroute
+router_options=ndb
+servers=server1
+user=maxscale
+passwd=maxscalepass
+version_string=5.5.37-CLUSTER
+#localhost_match_wildcard_host=1
+
+[Cluster Listener]
+type=listener
+service=Cluster Service
+protocol=mariadbclient
+port=4006
+#address=0.0.0.0
+
+[NDB Cluster Monitor]
+type=monitor
+module=ndbclustermon
+servers=server1
+user=maxscale
+passwd=maxscalepass
+monitor_interval=8000
+
+[server1]
+#SQL node1
+type=server
+address=172.31.0.12
+port=3306
+protocol=mariadbbackend

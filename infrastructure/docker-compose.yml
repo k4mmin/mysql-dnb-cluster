@@ -1,0 +1,86 @@
+version: '3'
+services:
+    maxscale:
+      container_name: maxscale
+      image: mariadb/maxscale:latest
+      user: maxscale
+      networks:
+          backend:
+              ipv4_address: 172.31.0.10
+      volumes:
+          - ${DATA_DIR}/maxscale/conf.cnf:/etc/maxscale.cnf
+      ports:
+          - "4006:4006"
+          - "4008:4008"
+          - "8000:8000"
+
+    mysql_mgmd:
+      container_name: "management"
+      image: ${MYSQL_CLUSTER_DOCKER_IMAGE}
+      command: ndb_mgmd
+      networks:
+          backend:
+              ipv4_address: 172.31.0.11
+      volumes:
+        - ${DATA_DIR}/config.ini:/etc/mysql-cluster.cnf
+      expose:
+        - "1186"
+        - "3306"
+      restart: unless-stopped
+
+    mysql_ndb1:
+      container_name: "ndb1"
+      image: ${MYSQL_CLUSTER_DOCKER_IMAGE}
+      depends_on:
+        - mysql_mgmd
+      command: ndbd
+      networks:
+          backend:
+              ipv4_address: 172.31.0.13
+      volumes:
+        - ${DATA_DIR}/my.cnf:/etc/my.cnf
+      expose:
+          - "3306"
+      restart: unless-stopped
+
+    mysql_ndb2:
+      container_name: "ndb2"
+      image: ${MYSQL_CLUSTER_DOCKER_IMAGE}
+      depends_on:
+        - mysql_mgmd
+      command: ndbd
+      networks:
+          backend:
+              ipv4_address: 172.31.0.14
+      volumes:
+        - ${DATA_DIR}/my.cnf:/etc/my.cnf
+      expose:
+          - "3306"
+      restart: unless-stopped
+
+    mysqld:
+      container_name: "mysqld"
+      image: ${MYSQL_CLUSTER_DOCKER_IMAGE}
+      command: mysqld
+      depends_on:
+        - mysql_ndb1
+        - mysql_ndb2
+      networks:
+          backend:
+              ipv4_address: 172.31.0.12
+      volumes:
+        - ${DATA_DIR}/my.cnf:/etc/my.cnf
+      environment:
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_ROOT_HOST=${MYSQL_ROOT_HOST}
+      expose:
+          - "3306"
+      restart: unless-stopped
+
+networks:
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24

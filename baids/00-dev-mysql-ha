@@ -1,0 +1,65 @@
+#!/bin/bash
+
+function dev-mysql-ha-shell() {
+  dev-mysql-ha-init
+  SERVICES=($(docker-compose -f ${DOCKER_COMPOSE_FILE} ps --services))
+  choose_docker_service
+  if [ ${SELECTION} -le $(echo ${SERVICES[@]} | wc -w) ]
+  then
+    CONTAINER=${SERVICES[$((${SELECTION}-1))]}
+    echo "[!] Service: ${CONTAINER}"
+    docker-compose -f ${DOCKER_COMPOSE_FILE} exec ${CONTAINER} /bin/bash
+  else
+    echo "[!] Not such service"
+    return 1
+  fi
+}
+
+function choose_docker_service(){
+  INDEX=1
+  for i in ${SERVICES[@]}
+  do
+    echo $INDEX: $i
+    INDEX=$(($INDEX + 1))
+  done
+  PS3='Please enter your choice: '
+  read -s -n 1 SELECTION
+  return $SELECTION
+}
+
+function dev-mysql-ha-client() {
+
+  docker run -it --net=infrastructure_backend --rm mysql sh -c "exec mysql -h maxscale -P 4006 -u root -p${MYSQL_ROOT_PASSWORD}"
+
+}
+
+function dev-mysql-ha-info() {
+
+  echo -e "\n[!] Use 'show' inside container \n"
+  docker run -it --net=infrastructure_backend mysql/mysql-cluster ndb_mgm mysql_mgmd 1186
+
+}
+
+function dev-mysql-ha-start() {
+
+  ARGS=$1
+  dev-mysql-ha-init
+  docker-compose -f $DOCKER_COMPOSE_FILE up -d $ARGS
+
+}
+
+function dev-mysql-ha-destroy() {
+
+  ARGS=$1
+  dev-mysql-ha-init
+  docker-compose -f $DOCKER_COMPOSE_FILE down -v $ARGS
+
+}
+
+function dev-mysql-ha-restart() {
+
+  ARGS=$1
+  dev-mysql-ha-init
+  docker-compose -f $DOCKER_COMPOSE_FILE restart $ARGS
+
+}
